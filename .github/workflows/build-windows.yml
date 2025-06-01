@@ -9,10 +9,10 @@ jobs:
     steps:
       # 1. Checkout the repository (with submodules)
       - name: Clone Ladybird official repo
-       run: |
-         git clone https://github.com/LadybirdBrowser/ladybird.git
-         cd ladybird
-         git submodule update --init --recursive
+        run: |
+          git clone https://github.com/LadybirdBrowser/ladybird.git
+          cd ladybird
+          git submodule update --init --recursive
 
       # 2. Install build dependencies via Chocolatey
       - name: Install build tools
