@@ -13,7 +13,7 @@ jobs:
         with:
           submodules: recursive
 
-# 2. Install build dependencies via Chocolatey
+      # 2. Install build dependencies via Chocolatey
       - name: Install build tools
         run: |
           choco feature enable -n allowGlobalConfirmation
