@@ -1,0 +1,85 @@
+name: Build Ladybird (Windows)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      # 1. Checkout the repository (with submodules)
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      # 2. Install build dependencies via Chocolatey
+      - name: Install build tools
+        run: |
+          # Update Chocolatey and install required packages
+          choco feature enable -n allowGlobalConfirmation
+          choco install -y git cmake --installargs 'ADD_CMAKE_TO_PATH=System' \
+                           ninja  \
+                           llvm       \
+                           qt6-base-dev qt6-tools \
+                           nasm  \
+                           zip unzip
+
+      # 3. Configure the build with CMake (Clang + Ninja)
+      - name: Configure CMake
+        shell: bash
+        run: |
+          mkdir build
+          cd build
+          cmake -G "Ninja" \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_C_COMPILER=clang \
+                -DCMAKE_CXX_COMPILER=clang++ \
+                ..
+
+      # 4. Build Ladybird
+      - name: Build Ladybird
+        run: cmake --build build --config Release
+
+      # 5. Package the executable and runtime DLLs
+      - name: Package Ladybird.exe and DLLs
+        shell: pwsh
+        run: |
+          # Create artifact directory
+          $out = "$PWD/artifact"
+          New-Item -ItemType Directory -Path $out -Force | Out-Null
+
+          # Copy the built Ladybird.exe
+          $exePath = Get-ChildItem -Path build -Filter "ladybird.exe" -Recurse | Select-Object -First 1
+          if (-Not $exePath) {
+            Write-Error "Ladybird.exe not found in build directory."
+          }
+          Copy-Item $exePath.FullName -Destination $out
+
+          # Locate Qt installation directory via qmake
+          $qmake = & "qmake" -v 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "qmake not found; Qt may not be on PATH."
+          }
+          $qtBin = Split-Path ((Get-Command qmake).Source)
+          # Copy Qt6 DLLs (Core, Gui, Widgets, etc.)
+          Copy-Item "$qtBin\Qt6*.dll" -Destination $out -Force
+
+          # Copy Qt platform plugins (qwindows.dll) if present
+          $platformDir = Join-Path $qtBin "plugins\platforms"
+          if (Test-Path $platformDir) {
+            New-Item -ItemType Directory -Path "$out\platforms" -Force | Out-Null
+            Copy-Item "$platformDir\*.dll" -Destination "$out\platforms" -Force
+          }
+
+          # (Optional) Copy additional DLLs if needed, e.g. multimedia or network if not static
+
+          # Compress the artifact
+          Compress-Archive -Path $out\* -DestinationPath ladybird-windows.zip -Force
+
+      # 6. Upload the artifact
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ladybird-windows
+          path: ladybird-windows.zip
