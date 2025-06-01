@@ -8,10 +8,11 @@ jobs:
     runs-on: windows-latest
     steps:
       # 1. Checkout the repository (with submodules)
-      - name: Checkout repository
-        uses: actions/checkout@v3
-        with:
-          submodules: recursive
+      - name: Clone Ladybird official repo
+       run: |
+         git clone https://github.com/LadybirdBrowser/ladybird.git
+         cd ladybird
+         git submodule update --init --recursive
 
       # 2. Install build dependencies via Chocolatey
       - name: Install build tools
