@@ -13,17 +13,17 @@ jobs:
         with:
           submodules: recursive
 
-      # 2. Install build dependencies via Chocolatey
+# 2. Install build dependencies via Chocolatey
       - name: Install build tools
         run: |
-          # Update Chocolatey and install required packages
           choco feature enable -n allowGlobalConfirmation
-          choco install -y git cmake --installargs 'ADD_CMAKE_TO_PATH=System' \
-                           ninja  \
-                           llvm       \
-                           qt6-base-dev qt6-tools \
-                           nasm  \
-                           zip unzip
+          choco install -y git
+          choco install -y cmake --installargs 'ADD_CMAKE_TO_PATH=System'
+          choco install -y ninja
+          choco install -y llvm
+          choco install -y qt6-base-dev qt6-tools
+          choco install -y nasm
+          choco install -y zip unzip
 
       # 3. Configure the build with CMake (Clang + Ninja)
       - name: Configure CMake
