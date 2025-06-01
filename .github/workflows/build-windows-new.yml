@@ -1,0 +1,67 @@
+name: Build Ladybird (Windows)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      # 1. Clone the actual Ladybird source repo
+      - name: Clone Ladybird repo
+        run: |
+          git clone --recursive https://github.com/LadybirdBrowser/ladybird.git
+          dir ladybird
+
+      # 2. Install build dependencies via Chocolatey
+      - name: Install build tools
+        shell: pwsh
+        run: |
+          choco feature enable -n allowGlobalConfirmation
+          choco install -y git
+          choco install -y cmake --installargs 'ADD_CMAKE_TO_PATH=System'
+          choco install -y ninja
+          choco install -y llvm
+          choco install -y nasm
+          choco install -y zip unzip
+
+      # 3. Configure the build with CMake (Clang + Ninja)
+      - name: Configure CMake
+        shell: bash
+        run: |
+          mkdir ladybird/build
+          cd ladybird/build
+          cmake -G "Ninja" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            ..
+
+      # 4. Build Ladybird
+      - name: Build Ladybird
+        run: cmake --build ladybird/build --config Release
+
+      # 5. Package the executable and runtime DLLs
+      - name: Package Ladybird.exe and DLLs
+        shell: pwsh
+        run: |
+          $buildDir = "ladybird/build"
+          $out = "$PWD/artifact"
+          New-Item -ItemType Directory -Path $out -Force | Out-Null
+
+          $exePath = Get-ChildItem -Path $buildDir -Filter "ladybird.exe" -Recurse | Select-Object -First 1
+          if (-Not $exePath) {
+            Write-Error "Ladybird.exe not found."
+            exit 1
+          }
+          Copy-Item $exePath.FullName -Destination $out
+
+          Compress-Archive -Path $out\* -DestinationPath ladybird-windows.zip -Force
+
+      # 6. Upload the artifact
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ladybird-windows
+          path: ladybird-windows.zip
